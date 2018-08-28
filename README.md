@@ -57,3 +57,7 @@
 <br>Procedure will deploy a "cloud setup" script, which will force dirsync, assign licences, verify mailbox creation, assign timezone, set various holds and cal / mailbox perms as needed. <br/>
 
 <br>Finally, all logs will be scraped by Kaseya, sent back to the engineer in question, and all ps1's and other components will be wiped. <br/>
+
+
+############ SOFTWARE PREREQS
+<br> MSOL Sign In Assistant https://www.microsoft.com/en-us/download/details.aspx?id=41950<br/>
