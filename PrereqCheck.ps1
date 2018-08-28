@@ -19,17 +19,27 @@ exit
 
 function TestO365Creds #Verifies provided password will authenticate into O365
 {
-$Username = "Username"
-$Password = ConvertTo-SecureString "Password" -AsPlainText -Force
+$Username = "username"
+$Password = ConvertTo-SecureString "password" -AsPlainText -Force
 $LiveCred = New-Object System.Management.Automation.PSCredential $Username, $Password
-$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://ps.outlook.com/powershell/ -Credential $LiveCred -Authentication Basic -AllowRedirection
+try 
+{$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://ps.outlook.com/powershell/ -Credential $LiveCred -Authentication Basic -AllowRedirection -EA Stop
+Add-Content -Path ".\Errors.txt" -Value "O365 Password Is Correct = TRUE" -Force
+Remove-PSSession $Session}
+catch {Add-Content -Path ".\Errors.txt" -Value "O365 Password Is Correct = FALSE" -Force
+exit}
+}
+
+
+function Attach365 #Currently not referenced. This code will install the az module if missing, and finish the dial in started with the code in the previous function. 
+{
 Import-PSSession $Session -AllowClobber
-Connect-MsolService –Credential $LiveCred
-If ($?)
-{Add-Content -Path ".\Errors.txt" -Value "O365 Password Is Correct = TRUE" -Force}
-Else
-{Add-Content -Path ".\Errors.txt" -Value "O365 Password Is Correct = FALSE" -Force}
-Remove-PSSession $Session
+#Check for missing module, if missing will install
+if (Get-Module -ListAvailable -Name AzureADPreview) 
+{Connect-AzureAD -Credential $LiveCred}
+else 
+{Install-Module AzureADPreview -force
+Connect-AzureAD -Credential $LiveCred}
 }
 
 CheckPDC 
