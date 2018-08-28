@@ -47,6 +47,7 @@
 <br>Supervisor, ensure able to resolve if provided<br/>
 <br>Server status: Need to make sure that the procedure is executed against a DC - COMPLETED<br/>
 <br>DerpSync presence, need to ensure that the dirsync client is on the target server to force replication if this is a client with dirsynced o365. Suspect I will end up having a master script for dirsynced AD, and one for on prem.<br/>
+<br>MSOL Components, needed to assign licencing for now, will be depricated when the Azure AD module is complete, but for now must use MSOL. Will add an installer if missing.<br/>
 
 
 ############################# ROUGH MAPPING
