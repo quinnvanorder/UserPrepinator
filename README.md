@@ -41,12 +41,12 @@
 ############################### INITIAL ERROR HANDLING
 <br>at first run of script, several critical components need to be checked before beginning to avoid a "half setup" user. <br/>
 
-<br>MSOL Sign in components... if not present, install and recheck<br/>
+<br>Azure AD components... if not present, install -COMPLETED, not in referenced function yet. Not needed for error handling after all, can reference in primary script<br/>
 <br>Admin U/P for 365, sign in and confirm access - COMPLETED<br/>
 <br>Licences, ensure there is a free one to assign before beginning. <br/>
 <br>Supervisor, ensure able to resolve if provided<br/>
 <br>Server status: Need to make sure that the procedure is executed against a DC - COMPLETED<br/>
-<br>DerpSync presence, need to ensure that the dirsync client is on the target server to force replication if this is a client with dirsynced o365<br/>
+<br>DerpSync presence, need to ensure that the dirsync client is on the target server to force replication if this is a client with dirsynced o365. Suspect I will end up having a master script for dirsynced AD, and one for on prem.<br/>
 
 
 ############################# ROUGH MAPPING
@@ -57,7 +57,3 @@
 
 <br>Finally, all logs will be scraped by Kaseya, sent back to the engineer in question, and all ps1's and other components will be wiped. <br/>
 
-
-############ SOFTWARE PREREQS
-<br> MSOL Sign In Assistant https://www.microsoft.com/en-us/download/details.aspx?id=41950<br/>
-Install-Module MSOnline
