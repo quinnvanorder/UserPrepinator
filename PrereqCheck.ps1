@@ -4,15 +4,17 @@
 # This script checks several critical components, all of which would break the next step if wrong. Logs results to txt file,  will be assessed by Kaseya before it executes the next phase. 
 #======================================================================================================
 
-## TESTING CREDS (long term plan is to pass creds as variables, most likely stored in container variables or provided by user input)
-$Username = 'email address' #For now, passwords are hardcoded for easy testing. Long term plan is to pass into script as variable. Looking into secure way to do this
-$Password = ConvertTo-SecureString 'password' -AsPlainText -Force
+
+#STATUS: For now, I am considering this check script done, in that it does what I currently need it to do. I suspect the PDC check may not be needed, will revisit. 
+
+#VARIABLE INPUT
+param([string]$Username,[string]$PW,[string]$LicenceType,[string]$ManagerEmail,[string]$TargetEmail)
+
+$Password = ConvertTo-SecureString $PW -AsPlainText -Force
 $LiveCred = New-Object System.Management.Automation.PSCredential $Username, $Password
-## TESTING CREDS
 
-
-#WORKING FUNCTIONS
-function CheckPDC #Verifies if script is running on the Primary Domain Controller (may want to alter that down the road to be any DC, not just the PDC, will revisit)
+#FUNCTION JUNCTION WHATS YOUR FUNCTION
+function CheckPDC #Verifies if script is running on the Primary Domain Controller, realistically what actually matters is the ability to run import-module activedirectory, so long term this function may not be used
 {
 $CompConfig = Get-WmiObject Win32_ComputerSystem
 foreach ($ObjItem in $CompConfig) {$Role = $ObjItem.DomainRole}
@@ -31,73 +33,53 @@ catch {Add-Content -Path ".\Errors.txt" -Value "O365 Password Is Correct = FALSE
 
 function CheckForFreeLicense
 {
-$LTotal = (Get-MsolAccountSku | where {$_.AccountSkuId -eq "COMPANYNAME:ENTERPRISEPACK"}).ActiveUnits #run Get-MsolAccountSku to see list and exact names of target license. For now, assumption is E3, will be hardcoded variable on VSA site. 
-$LUsed = (Get-MsolAccountSku | where {$_.AccountSkuId -eq "COMPANYNAME:ENTERPRISEPACK"}).ConsumedUnits
+$LTotal = (Get-MsolAccountSku | where {$_.AccountSkuId -eq $LicenceType}).ActiveUnits #run Get-MsolAccountSku to see list and exact names of target license. For now, assumption is E3, will be hardcoded variable on VSA site. 
+$LUsed = (Get-MsolAccountSku | where {$_.AccountSkuId -eq $LicenceType}).ConsumedUnits
 if ($LTotal -gt $LUsed) {Add-Content -Path ".\Errors.txt" -Value "Target License Is Free = TRUE" -Force} else {Add-Content -Path ".\Errors.txt" -Value "Target License Is Free = FALSE" -Force}
 }
 
-
-#FUNCTIONS TO BE BUILT
 function CheckIfManagerExists
 {
+$ManagerPresence =  Get-Recipient $ManagerEmail -ErrorAction SilentlyContinue
+If($ManagerPresence -eq $null) {Add-Content -Path ".\Errors.txt" -Value "Target Manager Exists = FALSE" -Force} Else {Add-Content -Path ".\Errors.txt" -Value "Target Manager Exists = TRUE" -Force}
 }
 
-function CheckIfEmailConflicts #cant use an email that is already present!
-{ #looks like I can simply run Get-Recipient user at domain.com in a basic if... if present, will display. 
-}
-
-
-#FUNCTION GRAVEYARD (Probably wont be used or built, keeping around for now "just in case"
-function CheckMSOLComponents
+function CheckIfEmailConflicts
 {
-<# Skipping for now. With the initial proof of concept, I will just configure the server as needed, I will circle back once this is prooved out to add a function to configure the server as needed. 
-Requires MSOnline Sign in Assistant
-Requires Azure AD Module, this can be imported instead of installed if we need a super light footprint, but odds are I will want the target servers to have these persistantly. 
-Will also need to add an update handler to this function. At the end of the day, this may spiral into a whole seperate "server prepinator" script to put all the pieces in place
-Requires .net 3.5
-Requires WMF5.1
-Requires latest Nuget (Install-Module -Name AzureRM will trigger it if out of date, but probably want to do seperately)
-Install-Module -Name AzureRM (not 100% that I need this, will circle back)
-Install-Module -Name AzureAD
-Install-Module -Name MSOnline
-Rough check logic: Is WMF installed? If no, do that!, then set execution to bypass, update nuget, install azurerm, azuread, and msonline. The MSOnline installer appeared to do jack squat, need to test if thats a "need it installed and then use cli install" or if this is a "yeah that msi is outdated, dont do that." Tests for the future! #>
+$TargetEmailFree =  Get-Recipient $TargetEmail -ErrorAction SilentlyContinue
+If($TargetEmailFree -eq $null) {Add-Content -Path ".\Errors.txt" -Value "Target Email Is Free = TRUE" -Force} Else {Add-Content -Path ".\Errors.txt" -Value "Target Email Is Free = FALSE" -Force}
 }
 
-function CheckDirSyncPresence
-{
-#{Also skipping for now, as this will probably be its own whole adventure. In short, I want to use the dirsync client to force a sync, but frankly with the massive variety in configurations, it may be easier to just check for sync every few minutes until the user object passes, code for that already built in old master, will port across. If that does not cut it by itself, will revisit this function
-}
-
-function Attach365 #Currently not referenced. This code will install the az module if missing, and finish the dial in started with the code in the previous function. Reworked to use the new AzureADPreview module. Eventually will have to rename once they finalize and kill off the old MSOL, but by using the new commands, this 'future proofs' this script for hopefully a few years
-{
-Import-PSSession $Session -AllowClobber
-#Check for missing module, if missing will install
-if (Get-Module -ListAvailable -Name AzureADPreview) 
-{Connect-AzureAD -Credential $LiveCred}
-else 
-{Install-Module AzureADPreview -force
-Connect-AzureAD -Credential $LiveCred}
-}
-
-
-#Note, lots of write hosts for  now, using that to make sure each step is passing, wont be in final product obviously
 
 #FUNCTION CALLS
 CheckPDC
-write-host "PDC CHECK COMPLETED"
 TestO365Creds
-write-host "CRED CHECK COMPLETED"
+
 
 #DIAL IN 
 $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://ps.outlook.com/powershell/ -Credential $LiveCred -Authentication Basic -AllowRedirection
 Import-Module (Import-PSSession $Session -AllowClobber -Warningaction SilentlyContinue) -Global -WarningAction SilentlyContinue 2>&1 | Out-Null
-Connect-MsolService -Credential $LiveCred | Out-Null #enables msol connector features
-write-host "DIAL IN COMPLETED"
+Connect-MsolService -Credential $LiveCred | Out-Null
+
 
 #FUNCTION CALLS
 CheckForFreeLicense
-write-host "FREE LICENSE CHECK COMPLETED"
+CheckIfManagerExists
+CheckIfEmailConflicts
 
 #DISCONNECT
 Remove-PSSession $Session
 write-host "SUCCESS"
+
+
+
+#NOTES
+<#
+Server Reqs:
+Requires Latest WMF
+Requires .net 3.5
+Requires latest Nuget, will be prompted with other install module commands, but realistically that should be its own command
+Install-Module -Name AzureRM -allowclobber (not 100% that I need this, will circle back)
+Install-Module -Name AzureAD -allowclobber
+Install-Module -Name MSOnline
+#>
